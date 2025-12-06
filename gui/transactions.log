@@ -1,1 +1,5 @@
 [2025-12-06 21:06:50] Actor: 123456 | Action: Create Request | Item/Req: 5 | Qty: 10
+[2025-12-06 22:40:22] Actor: 123456 | Action: Create Request | Item/Req: 1 | Qty: 20
+[2025-12-06 22:41:08] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 2 | Qty: 0
+[2025-12-06 22:49:54] Actor: 123456 | Action: Create Request | Item/Req: 5 | Qty: 23
+[2025-12-06 22:50:58] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 3 | Qty: 0

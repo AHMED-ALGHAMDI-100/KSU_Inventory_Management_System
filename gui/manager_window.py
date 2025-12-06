@@ -9,9 +9,11 @@ from CTkMessagebox import CTkMessagebox  # For better dialogs (ensure installed)
 # from models.inventory_item import InventoryItem # Needed for Item CRUD
 
 class ManagerWindow(ctk.CTkFrame):
+
     def __init__(self, master, controller):
         super().__init__(master)
         self.controller = controller
+        self.user_id = None
 
         # --- Configure Grid for Layout ---
         self.grid_rowconfigure(1, weight=1)  # Tabview row
@@ -69,18 +71,22 @@ class ManagerWindow(ctk.CTkFrame):
         self.ent_unit = ctk.CTkEntry(frame_item_crud, width=100)
         self.ent_unit.grid(row=1, column=1, padx=5, pady=5)
 
-        ctk.CTkLabel(frame_item_crud, text="Reorder Lvl:").grid(row=1, column=2, padx=5, pady=5)
+        ctk.CTkLabel(frame_item_crud, text="Quantity:").grid(row=1, column=2, padx=5, pady=5)
+        self.ent_qty = ctk.CTkEntry(frame_item_crud, width=100)
+        self.ent_qty.grid(row=1, column=3, padx=5, pady=5)
+
+        ctk.CTkLabel(frame_item_crud, text="Reorder Lvl:").grid(row=2, column=0, padx=5, pady=5)
         self.ent_lvl = ctk.CTkEntry(frame_item_crud, width=100)
-        self.ent_lvl.grid(row=1, column=3, padx=5, pady=5)
+        self.ent_lvl.grid(row=2, column=1, padx=5, pady=5)
 
         # BUTTONS
         ctk.CTkButton(frame_item_crud, text="Add Item", command=self.add_item).grid(row=2, column=3, padx=5, pady=10)
 
         # TABLE (Using standard ttk.Treeview as ctk has no dedicated replacement)
-        self.tree_inv = tk.ttk.Treeview(tab, columns=('ID', 'Name', 'Cat', 'Unit', 'Qty', 'Lvl'),
+        self.tree_inv = tk.ttk.Treeview(tab, columns=('ID', 'Name', 'Cat', 'Unit', 'LvL', 'Qty'),
                                         show='headings')
         # ... Treeview heading/column configuration remains the same ...
-        for col in ('ID', 'Name', 'Cat', 'Unit', 'Qty', 'Lvl'):
+        for col in ('ID', 'Name', 'Cat', 'Unit', 'LvL', 'Qty'):
             self.tree_inv.heading(col, text=col)
             self.tree_inv.column(col, width=80)
         self.tree_inv.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
@@ -147,16 +153,14 @@ class ManagerWindow(ctk.CTkFrame):
             CTkMessagebox(title="Error", message="Please select a request to approve.", icon="warning")
             return
 
-        # Logic to extract request details
         item = self.tree_req.item(selected[0])
         req_id = item['values'][0]
         req_type = item['values'][5]
 
-        # Determine the status based on type
         status = "Approved - Ready for Pickup" if req_type == 'Request' else "Approved - Ready for Pickup (Return)"
 
-        # Assuming RequestManager handles stock reservation for Requests
-        if RequestManager.process_approval(req_id, status, self.controller.user_id):
+        # --- FIX THIS LINE (Use self.user_id) ---
+        if RequestManager.process_approval(req_id, status, self.user_id):
             CTkMessagebox(title="Approved", message=f"Request/Return {req_id} approved. Status: {status}", icon="check")
         else:
             CTkMessagebox(title="Error", message=f"Failed to approve {req_id}. Check stock levels.", icon="cancel")

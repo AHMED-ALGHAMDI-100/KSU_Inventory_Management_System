@@ -43,7 +43,7 @@ class College:
             sql = """
                 SELECT i.id, i.name, cs.quantity, i.unit
                 FROM college_stock cs
-                JOIN items i ON cs.item_id = i.id
+                JOIN items i ON cs.item_id = i.item_id
                 WHERE cs.college_id = %s AND cs.quantity > 0
             """
             cursor.execute(sql, (self.college_id,))
@@ -65,12 +65,15 @@ class College:
             if conn is None: return []
             cursor = conn.cursor()
 
-            # Fetch details including Item Name using JOIN
+            # FIX:
+            # 1. Changed 'r.id' to 'r.request_no'
+            # 2. Changed 'r.type' to 'r.request_type'
+            # 3. Changed 'i.id' to 'i.item_id' (just in case)
             sql = """
-                SELECT r.id, i.name, r.quantity, r.status, r.request_date, r.rejection_reason
+                SELECT r.request_no, i.name, r.quantity, r.status, r.request_date, r.rejection_reason
                 FROM requests r
-                JOIN items i ON r.item_id = i.id
-                WHERE r.college_id = %s AND r.type = %s
+                JOIN items i ON r.item_id = i.item_id
+                WHERE r.college_id = %s AND r.request_type = %s
                 ORDER BY r.request_date DESC
             """
             cursor.execute(sql, (self.college_id, trans_type))
