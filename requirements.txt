@@ -1,0 +1,9 @@
+# Database connector for PostgreSQL
+psycopg2-binary
+
+# Secure Password Hashing library
+bcrypt
+
+# Securely reads the .env file
+python-dotenv
+

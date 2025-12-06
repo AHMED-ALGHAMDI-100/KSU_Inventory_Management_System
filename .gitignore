@@ -1,0 +1,11 @@
+# CRITICAL: Project Secrets
+.env
+
+# Python Environment and Cache
+venv/
+__pycache__/
+*.pyc
+
+# macOS Files
+.DS_Store
+
