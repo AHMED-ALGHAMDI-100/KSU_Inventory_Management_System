@@ -3,3 +3,11 @@
 [2025-12-06 22:41:08] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 2 | Qty: 0
 [2025-12-06 22:49:54] Actor: 123456 | Action: Create Request | Item/Req: 5 | Qty: 23
 [2025-12-06 22:50:58] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 3 | Qty: 0
+[2025-12-07 07:09:48] Actor: 123456 | Action: Create Request | Item/Req: 4 | Qty: 22
+[2025-12-07 07:25:17] Actor: 123456 | Action: Create Request | Item/Req: 4 | Qty: 5
+[2025-12-07 07:30:46] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 5 | Qty: 0
+[2025-12-07 08:28:33] Actor: 123456 | Action: Create Request | Item/Req: 6 | Qty: 2
+[2025-12-07 08:29:19] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup | Item/Req: 6 | Qty: 0
+[2025-12-07 08:35:54] Actor: 123456 | Action: Create Return | Item/Req: 6 | Qty: 1
+[2025-12-07 08:36:58] Actor: 222333 | Action: Set Status: Approved - Ready for Pickup (Return) | Item/Req: 7 | Qty: 0
+[2025-12-07 08:53:59] Actor: 123456 | Action: Create Request | Item/Req: 1 | Qty: 22

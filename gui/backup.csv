@@ -1,0 +1,31 @@
+--- TABLE: users ---
+id,first_name,last_name,user_class,password_hash,email,phone_number,created_at
+123456,A,B,College,$2b$12$qqOlBI0wP4GuuEUB5l.TGOV/hDSkh9qJoKwqtyJ1bkVtgfN5XrjXm,a@ksu.edu.sa,0512345678,2025-12-06 15:37:17.897878
+111222,C,D,College,$2b$12$ro.JJjpLAr8qdm/AR5eZhuLMyUm37wO0tEYsPXv1S0PWxfM93YOse,c@ksu.edu.sa,0552345678,2025-12-06 18:09:31.301625
+222333,I,N,Inventory Manager,$2b$12$pK42DxUk628aN9SsY8Wgw.F1qVMKVB32AvNETWkfx/Nw0kBg.d8Fy,i@ksu.edu.sa,0542345678,2025-12-06 18:10:27.112635
+111111,C,c,Courier,$2b$12$AD/rcomnUArkLBT73pwEX.sTlq5xXiQstwseDdVbjfHA4KrLI.GZq,co@ksu.edu.sa,0561112221,2025-12-07 04:33:45.016043
+
+--- TABLE: items ---
+item_id,name,category,unit,reorder_level,quantity_central
+1,Dell OptiPlex 7000,PC,Pcs,20,150
+2,Samsung Laser Printer,Printers,Pcs,10,75
+3,Ergonomic Chair,Chairs,Pcs,50,300
+5,55 inch smart TV,TVs,Pcs,10,60
+4,Large Conference Desk,Desks,Pcs,5,25
+6,Mac M4,Laptops,Pcs,100,399
+
+--- TABLE: requests ---
+request_no,request_type,college_id,item_id,quantity,purpose_notes,status,manager_id,courier_id,rejection_reason,request_date
+1,Request,123456,5,10,We need it,Rejected,,,no reason just I don't like the request,2025-12-06 21:06:50.198862
+3,Request,123456,5,23,We need it ,Approved - Ready for Pickup,,,,2025-12-06 22:49:53.872361
+4,Request,123456,4,22,Need it,Rejected,,,insuff,2025-12-07 07:09:48.140972
+2,Request,123456,1,20,I need it,Picked Up by Courier,,111111,,2025-12-06 22:40:21.695251
+5,Request,123456,4,5,Needed,Picked Up by Courier,,111111,,2025-12-07 07:25:16.982687
+6,Request,123456,6,2,I love mac,Delivered to College,,111111,,2025-12-07 08:28:32.380515
+7,Return,123456,6,1,no need,Received at Inventory,,111111,,2025-12-07 08:35:53.463474
+8,Request,123456,1,22,Needed,Pending,,,,2025-12-07 08:53:58.346304
+
+--- TABLE: inventory_stock ---
+stock_id,item_id,location_type,college_id,quantity
+2,6,College,123456,2
+

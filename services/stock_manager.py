@@ -26,6 +26,7 @@ class StockManager:
             if conn is None: return False
             cursor = conn.cursor()
 
+            # Note: Using 'quantity_central' based on your DB screenshot
             sql = """
                 INSERT INTO items (name, category, unit, quantity_central, reorder_level)
                 VALUES (%s, %s, %s, %s, %s)
@@ -43,7 +44,6 @@ class StockManager:
     def get_all_items(filter_category=None):
         """
         Retrieves items for the list or dashboard.
-        Supports filtering by category[cite: 57].
         """
         conn = None
         try:
@@ -51,11 +51,13 @@ class StockManager:
             if conn is None: return []
             cursor = conn.cursor()
 
+            # FIX: Explicitly selecting columns to match Manager Window treeview order
+            # (ID, Name, Cat, Unit, Lvl, Qty)
             if filter_category:
-                sql = "SELECT * FROM items WHERE category = %s"
+                sql = "SELECT item_id, name, category, unit, reorder_level, quantity_central FROM items WHERE category = %s"
                 cursor.execute(sql, (filter_category,))
             else:
-                sql = "SELECT * FROM items"
+                sql = "SELECT item_id, name, category, unit, reorder_level, quantity_central FROM items ORDER BY item_id"
                 cursor.execute(sql)
 
             return cursor.fetchall()
@@ -76,7 +78,8 @@ class StockManager:
             if conn is None: return False
             cursor = conn.cursor()
 
-            cursor.execute("DELETE FROM items WHERE id = %s", (item_id,))
+            # FIX: Changed 'id' to 'item_id'
+            cursor.execute("DELETE FROM items WHERE item_id = %s", (item_id,))
             conn.commit()
             return True
         except psycopg2.Error as e:
@@ -86,15 +89,13 @@ class StockManager:
             if conn: conn.close()
 
     # ---------------------------------------------------------
-    # PART 2: STOCK MOVEMENT & DASHBOARD [cite: 56]
+    # PART 2: STOCK MOVEMENT & DASHBOARD
     # ---------------------------------------------------------
 
     @staticmethod
     def adjust_central_stock(item_id, quantity_change):
         """
         Updates the quantity in the central warehouse.
-        - Negative quantity_change for Approved Requests (Reservation).
-        - Positive quantity_change for Received Returns.
         """
         conn = None
         try:
@@ -102,8 +103,8 @@ class StockManager:
             if conn is None: return False
             cursor = conn.cursor()
 
-            # Update quantity
-            sql = "UPDATE items SET quantity_central = quantity_central + %s WHERE id = %s"
+            # FIX: Changed 'id' to 'item_id'
+            sql = "UPDATE items SET quantity_central = quantity_central + %s WHERE item_id = %s"
             cursor.execute(sql, (quantity_change, item_id))
             conn.commit()
             return True
@@ -117,7 +118,6 @@ class StockManager:
     def get_low_stock_alerts():
         """
         Returns items where current quantity is below reorder level.
-        (Requirement: Low-stock alerts based on Reorder Level [cite: 56])
         """
         conn = None
         try:
@@ -138,8 +138,6 @@ class StockManager:
     def get_college_custody(college_id):
         """
         Shows quantities currently held by a specific college.
-        (Requirement: per-college custody balances [cite: 56])
-        Assuming a table 'college_stock' exists.
         """
         conn = None
         try:
@@ -147,11 +145,12 @@ class StockManager:
             if conn is None: return []
             cursor = conn.cursor()
 
+            # FIX: Joined with inventory_stock and used 'item_id'
             sql = """
-                SELECT i.name, cs.quantity
-                FROM college_stock cs
-                JOIN items i ON cs.item_id = i.id
-                WHERE cs.college_id = %s
+                SELECT i.name, s.quantity
+                FROM inventory_stock s
+                JOIN items i ON s.item_id = i.item_id
+                WHERE s.college_id = %s
             """
             cursor.execute(sql, (college_id,))
             return cursor.fetchall()
@@ -169,7 +168,6 @@ class StockManager:
     def backup_database():
         """
         Exports the entire central DB tables to CSV.
-        (Requirement: Export the entire central DB to CSV (backup.csv))
         """
         conn = None
         try:
@@ -177,9 +175,7 @@ class StockManager:
             if conn is None: return False, "Connection Failed"
             cursor = conn.cursor()
 
-            # We will dump the 'items' table as the main example,
-            # but ideally, you loop through all tables (users, requests, etc.)
-            tables = ['users', 'items', 'requests', 'college_stock']
+            tables = ['users', 'items', 'requests', 'inventory_stock']
 
             with open('backup.csv', 'w', newline='') as f:
                 writer = csv.writer(f)
@@ -188,19 +184,47 @@ class StockManager:
                     try:
                         cursor.execute(f"SELECT * FROM {table}")
                         rows = cursor.fetchall()
-                        col_names = [desc[0] for desc in cursor.description]
-
-                        # Write a header indicating the table name
-                        writer.writerow([f"--- TABLE: {table} ---"])
-                        writer.writerow(col_names)
-                        writer.writerows(rows)
-                        writer.writerow([])  # Empty line between tables
+                        if cursor.description:
+                            col_names = [desc[0] for desc in cursor.description]
+                            writer.writerow([f"--- TABLE: {table} ---"])
+                            writer.writerow(col_names)
+                            writer.writerows(rows)
+                            writer.writerow([])
                     except psycopg2.Error:
-                        continue  # Skip if table doesn't exist yet
+                        continue
 
             return True, "Backup created successfully as backup.csv"
 
         except Exception as e:
             return False, f"Backup Error: {e}"
+        finally:
+            if conn: conn.close()
+
+    @staticmethod
+    def get_all_college_custody():
+        """
+        Retrieves custody balances for all colleges.
+        (Requirement: per-college custody balances [cite: 56])
+        """
+        conn = None
+        try:
+            conn = get_db_connection()
+            if conn is None: return []
+            cursor = conn.cursor()
+
+            # Join to get College Name (from users) and Item Name
+            sql = """
+                  SELECT u.first_name, i.name, s.quantity
+                  FROM inventory_stock s
+                           JOIN users u ON s.college_id = u.id
+                           JOIN items i ON s.item_id = i.item_id
+                  WHERE s.quantity > 0
+                  ORDER BY u.first_name \
+                  """
+            cursor.execute(sql)
+            return cursor.fetchall()
+        except psycopg2.Error as e:
+            print(f"DB Error fetching all custody: {e}")
+            return []
         finally:
             if conn: conn.close()

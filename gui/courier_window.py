@@ -1,105 +1,110 @@
 import customtkinter as ctk
+import tkinter.ttk as ttk
 from CTkMessagebox import CTkMessagebox
-from services.courier_manager import CourierManager  # Required for business logic
+from services.courier_manager import CourierManager
 
 
 class CourierWindow(ctk.CTkFrame):
     def __init__(self, master, controller):
         super().__init__(master)
         self.controller = controller
+        self.user_id = None
 
-        # User ID is received from the controller during successful login
-        self.courier_id = None
-
-        # --- Configure Grid for Layout ---
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # --- Title Bar and Logout ---
+        # Header
         title_frame = ctk.CTkFrame(self, height=50)
         title_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
         title_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(title_frame, text="KSU Courier Operations", font=("Arial", 20, "bold")).grid(row=0, column=0,
+                                                                                                  padx=20, pady=10,
+                                                                                                  sticky="w")
+        ctk.CTkButton(title_frame, text="Logout", command=self.logout).grid(row=0, column=1, padx=20, pady=10,
+                                                                            sticky="e")
 
-        self.title_label = ctk.CTkLabel(title_frame, text="KSU Courier Operations Hub", font=("Arial", 20, "bold"))
-        self.title_label.grid(row=0, column=0, padx=20, pady=10, sticky="w")
-
-        # Logout button (Requirement: return to Sign up window)
-        logout_btn = ctk.CTkButton(title_frame, text="Logout", command=self.logout)
-        logout_btn.grid(row=0, column=1, padx=20, pady=10, sticky="e")
-
-        # --- Tabs Setup ---
-        # CTkTabview implements the required tabs structure
+        # Tabs
         self.notebook = ctk.CTkTabview(self)
         self.notebook.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-
-        # Tabs based on project requirements
-        self.notebook.add("Pick Up Request (Inventory)")
+        self.notebook.add("Pick Up Request")
         self.notebook.add("Deliver to College")
-        self.notebook.add("Pick Up Return (College)")
-        self.notebook.add("Deliver Return (Inventory)")
+        self.notebook.add("Pick Up Return")
+        self.notebook.add("Deliver Return")
 
-        # --- Build Tabs ---
-        # The create_action_tab function is generalized to build all four workflow steps quickly.
-        self.create_action_tab(
-            "Pick Up Request (Inventory)",
-            "Enter 16-digit Request ID to confirm pickup from KSU Inventory:",
-            CourierManager.pickup_request
-        )
-        self.create_action_tab(
-            "Deliver to College",
-            "Enter Request ID to confirm delivery to College:",
-            CourierManager.deliver_request
-        )
-        self.create_action_tab(
-            "Pick Up Return (College)",
-            "Enter 16-digit Return ID to confirm pickup from College:",
-            CourierManager.pickup_return
-        )
-        self.create_action_tab(
-            "Deliver Return (Inventory)",
-            "Enter Return ID to confirm delivery to KSU Inventory:",
-            CourierManager.deliver_return
-        )
+        self.setup_pickup_tab()
+        self.setup_delivery_tab()
+        self.setup_pickup_return_tab()
+        self.setup_deliver_return_tab()
 
     def logout(self):
-        """Destroys the current window and returns to the Sign Up screen."""
         self.controller.show_frame("SignUpWindow")
 
-    def create_action_tab(self, title, label_text, action_func):
-        """
-        Creates a standardized tab for one of the four required courier actions.
-        """
-        frame = self.notebook.tab(title)
-        frame.columnconfigure(0, weight=1)
+    # --- HELPER: Generic Table Setup ---
+    def _setup_table_tab(self, tab_name, button_text, load_func, action_func):
+        tab = self.notebook.tab(tab_name)
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_rowconfigure(1, weight=1)
 
-        # UI Elements using CTk
-        ctk.CTkLabel(frame, text=label_text, font=("Arial", 14)).pack(pady=20)
+        columns = ('ID', 'College', 'Item', 'Qty', 'Type', 'Notes')
+        tree = ttk.Treeview(tab, columns=columns, show='headings')
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=100)
+        tree.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
-        entry_id = ctk.CTkEntry(frame, width=300, font=("Arial", 14))
-        entry_id.pack(pady=5)
+        # Scrollbar
+        sb = ttk.Scrollbar(tab, orient="vertical", command=tree.yview)
+        sb.grid(row=1, column=1, sticky="ns")
+        tree.configure(yscrollcommand=sb.set)
 
-        # Error/Status Label
-        status_label = ctk.CTkLabel(frame, text="", text_color="red")
-        status_label.pack(pady=5)
+        btn_frame = ctk.CTkFrame(tab)
+        btn_frame.grid(row=2, column=0, pady=10)
 
-        def on_click():
-            req_id = entry_id.get()
+        # Load Data Wrapper
+        def refresh():
+            for item in tree.get_children(): tree.delete(item)
+            for row in load_func():
+                tree.insert('', 'end', values=row)
 
-            # Simple validation check for 16-digit IDs
-            if not req_id or (len(req_id) != 16 or not req_id.isdigit()):
-                CTkMessagebox(title="Error", message="Please enter the 16-digit Request/Return ID.", icon="cancel")
+        # Action Wrapper
+        def confirm():
+            selected = tree.selection()
+            if not selected:
+                CTkMessagebox(title="Error", message="Select a request.", icon="cancel")
                 return
+            req_id = tree.item(selected[0])['values'][0]
 
-            # Call the passed service function
-            # We assume action_func returns (success: bool, message: str)
-            success, msg = action_func(req_id, self.courier_id)
+            # Helper to handle different function signatures (some need courier_id, some don't)
+            try:
+                success = action_func(req_id, self.user_id)
+            except TypeError:
+                success = action_func(req_id)
 
             if success:
-                CTkMessagebox(title="Success", message=msg, icon="check")
-                entry_id.delete(0, 'end')
-                status_label.configure(text="")
+                CTkMessagebox(title="Success", message="Action Completed!", icon="check")
+                refresh()
             else:
-                CTkMessagebox(title="Error", message=msg, icon="cancel")
-                status_label.configure(text=msg, text_color="red")
+                CTkMessagebox(title="Error", message="Failed.", icon="cancel")
 
-        ctk.CTkButton(frame, text="Confirm Action", command=on_click, fg_color="#0056b3").pack(pady=20)
+        ctk.CTkButton(btn_frame, text=button_text, command=confirm, fg_color="green").pack(side='left', padx=10)
+        ctk.CTkButton(btn_frame, text="Refresh", command=refresh).pack(side='left', padx=10)
+
+        # Initial Load
+        refresh()
+
+    # --- TAB SETUP CALLS ---
+    def setup_pickup_tab(self):
+        self._setup_table_tab("Pick Up Request", "Confirm Pickup",
+                              CourierManager.get_requests_for_pickup, CourierManager.pickup_request)
+
+    def setup_delivery_tab(self):
+        self._setup_table_tab("Deliver to College", "Confirm Delivery",
+                              CourierManager.get_requests_for_delivery, CourierManager.deliver_request)
+
+    def setup_pickup_return_tab(self):
+        self._setup_table_tab("Pick Up Return", "Confirm Return Pickup",
+                              CourierManager.get_returns_for_pickup, CourierManager.pickup_return)
+
+    def setup_deliver_return_tab(self):
+        self._setup_table_tab("Deliver Return", "Confirm Return Delivery",
+                              CourierManager.get_returns_for_delivery, CourierManager.deliver_return)

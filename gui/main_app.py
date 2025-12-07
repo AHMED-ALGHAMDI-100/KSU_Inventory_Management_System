@@ -5,7 +5,7 @@ from gui.college_window import CollegeWindow
 from gui.courier_window import CourierWindow
 
 # Set the appearance mode and default color theme
-ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
+ctk.set_appearance_mode("Dark")  # Options: "System", "Dark", "Light"
 ctk.set_default_color_theme("blue")
 
 

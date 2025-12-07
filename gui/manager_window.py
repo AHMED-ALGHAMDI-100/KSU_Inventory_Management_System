@@ -1,207 +1,235 @@
 import customtkinter as ctk
-import tkinter as tk  # Keep tk for messagebox/simpledialog as ctk messagebox is separate library
-from tkinter import simpledialog, messagebox
+import tkinter as tk
+import tkinter.ttk as ttk
+from tkinter import simpledialog
 from services.stock_manager import StockManager
 from services.request_manager import RequestManager
-from CTkMessagebox import CTkMessagebox  # For better dialogs (ensure installed)
+from models.college import College
+from CTkMessagebox import CTkMessagebox
 
-
-# from models.inventory_item import InventoryItem # Needed for Item CRUD
 
 class ManagerWindow(ctk.CTkFrame):
-
     def __init__(self, master, controller):
         super().__init__(master)
         self.controller = controller
         self.user_id = None
 
-        # --- Configure Grid for Layout ---
-        self.grid_rowconfigure(1, weight=1)  # Tabview row
+        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # --- Title Bar and Logout ---
+        # Title
         title_frame = ctk.CTkFrame(self, height=50)
         title_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
         title_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(title_frame, text="KSU Inventory Manager Admin", font=("Arial", 20, "bold")).grid(row=0, column=0,
+                                                                                                       padx=20, pady=10,
+                                                                                                       sticky="w")
+        ctk.CTkButton(title_frame, text="Logout", command=self.logout, fg_color="red").grid(row=0, column=1, padx=20,
+                                                                                            pady=10, sticky="e")
 
-        self.title_label = ctk.CTkLabel(title_frame, text="KSU Inventory Manager Admin", font=("Arial", 20, "bold"))
-        self.title_label.grid(row=0, column=0, padx=20, pady=10, sticky="w")
-
-        # Logout button (Requirement: return to Sign up window)
-        logout_btn = ctk.CTkButton(title_frame, text="Logout", command=self.logout, fg_color="red")
-        logout_btn.grid(row=0, column=1, padx=20, pady=10, sticky="e")
-
-        # --- Tabs Setup ---
+        # Tabs
         self.notebook = ctk.CTkTabview(self)
         self.notebook.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.notebook.add("Registers (Items/Colleges)")
+        self.notebook.add("Pending Requests")
+        self.notebook.add("Dashboard")
 
-        # Tabs based on project requirements
-        self.notebook.add("Item Master & College Registry")
-        self.notebook.add("Pending Requests & Returns")
-        self.notebook.add("Stock Dashboard & Backup")
-
-        self.setup_inventory_tab()
+        self.setup_registers_tab()
         self.setup_requests_tab()
         self.setup_dashboard_tab()
 
     def logout(self):
-        """Destroys the current window and returns to the Sign Up screen."""
         self.controller.show_frame("SignUpWindow")
 
-    # --- Tab 1: Item Master & College Registry (CRUD) ---
-
-    def setup_inventory_tab(self):
-        tab = self.notebook.tab("Item Master & College Registry")
+    # --- TAB 1: REGISTERS (Item & College) ---
+    def setup_registers_tab(self):
+        tab = self.notebook.tab("Registers (Items/Colleges)")
         tab.grid_columnconfigure(0, weight=1)
+        tab.grid_columnconfigure(1, weight=1)  # Split screen: Items Left, Colleges Right
 
-        # Frame for Item Master CRUD (Inputs and Buttons)
-        frame_item_crud = ctk.CTkFrame(tab)
-        frame_item_crud.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        # --- LEFT: Item Master ---
+        frame_items = ctk.CTkFrame(tab)
+        frame_items.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        ctk.CTkLabel(frame_items, text="Item Master", font=("Arial", 16, "bold")).pack(pady=5)
 
-        # INPUT FIELDS (Replaced tk.Label/Entry with ctk.CTkLabel/CTkEntry)
-        ctk.CTkLabel(frame_item_crud, text="Item Name:").grid(row=0, column=0, padx=5, pady=5)
-        self.ent_name = ctk.CTkEntry(frame_item_crud, width=150)
-        self.ent_name.grid(row=0, column=1, padx=5, pady=5)
+        # Inputs
+        f_i_in = ctk.CTkFrame(frame_items)
+        f_i_in.pack(fill="x", padx=5)
+        self.ent_name = ctk.CTkEntry(f_i_in, placeholder_text="Name");
+        self.ent_name.pack(side="left", fill="x", expand=True, padx=2)
+        self.ent_cat = ctk.CTkEntry(f_i_in, placeholder_text="Category", width=80);
+        self.ent_cat.pack(side="left", padx=2)
+        self.ent_unit = ctk.CTkEntry(f_i_in, placeholder_text="Unit", width=60);
+        self.ent_unit.pack(side="left", padx=2)
+        self.ent_qty = ctk.CTkEntry(f_i_in, placeholder_text="Qty", width=50);
+        self.ent_qty.pack(side="left", padx=2)
+        self.ent_lvl = ctk.CTkEntry(f_i_in, placeholder_text="Lvl", width=50);
+        self.ent_lvl.pack(side="left", padx=2)
+        ctk.CTkButton(f_i_in, text="+", width=40, command=self.add_item).pack(side="left", padx=2)
 
-        ctk.CTkLabel(frame_item_crud, text="Category:").grid(row=0, column=2, padx=5, pady=5)
-        self.ent_cat = ctk.CTkEntry(frame_item_crud, width=100)
-        self.ent_cat.grid(row=0, column=3, padx=5, pady=5)
+        # Table
+        self.tree_inv = ttk.Treeview(frame_items, columns=('ID', 'Name', 'Cat', 'Unit', 'Lvl', 'Qty'), show='headings',
+                                     height=10)
+        for c in ('ID', 'Name', 'Cat', 'Unit', 'Lvl', 'Qty'):
+            self.tree_inv.heading(c, text=c);
+            self.tree_inv.column(c, width=40)
+        self.tree_inv.column('Name', width=120)
+        self.tree_inv.pack(fill="both", expand=True, padx=5, pady=5)
 
-        ctk.CTkLabel(frame_item_crud, text="Unit:").grid(row=1, column=0, padx=5, pady=5)
-        self.ent_unit = ctk.CTkEntry(frame_item_crud, width=100)
-        self.ent_unit.grid(row=1, column=1, padx=5, pady=5)
+        # --- RIGHT: College Registry ---
+        frame_colleges = ctk.CTkFrame(tab)
+        frame_colleges.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        ctk.CTkLabel(frame_colleges, text="College Registry", font=("Arial", 16, "bold")).pack(pady=5)
 
-        ctk.CTkLabel(frame_item_crud, text="Quantity:").grid(row=1, column=2, padx=5, pady=5)
-        self.ent_qty = ctk.CTkEntry(frame_item_crud, width=100)
-        self.ent_qty.grid(row=1, column=3, padx=5, pady=5)
+        # Inputs
+        f_c_in = ctk.CTkFrame(frame_colleges)
+        f_c_in.pack(fill="x", padx=5)
+        self.ent_col_name = ctk.CTkEntry(f_c_in, placeholder_text="College Name")
+        self.ent_col_name.pack(side="left", fill="x", expand=True, padx=5)
+        ctk.CTkButton(f_c_in, text="Add College", command=self.add_college).pack(side="right", padx=5)
 
-        ctk.CTkLabel(frame_item_crud, text="Reorder Lvl:").grid(row=2, column=0, padx=5, pady=5)
-        self.ent_lvl = ctk.CTkEntry(frame_item_crud, width=100)
-        self.ent_lvl.grid(row=2, column=1, padx=5, pady=5)
+        # Table
+        self.tree_col = ttk.Treeview(frame_colleges, columns=('ID', 'Name'), show='headings', height=10)
+        self.tree_col.heading('ID', text='ID');
+        self.tree_col.column('ID', width=50)
+        self.tree_col.heading('Name', text='Name');
+        self.tree_col.column('Name', width=200)
+        self.tree_col.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # BUTTONS
-        ctk.CTkButton(frame_item_crud, text="Add Item", command=self.add_item).grid(row=2, column=3, padx=5, pady=10)
-
-        # TABLE (Using standard ttk.Treeview as ctk has no dedicated replacement)
-        self.tree_inv = tk.ttk.Treeview(tab, columns=('ID', 'Name', 'Cat', 'Unit', 'LvL', 'Qty'),
-                                        show='headings')
-        # ... Treeview heading/column configuration remains the same ...
-        for col in ('ID', 'Name', 'Cat', 'Unit', 'LvL', 'Qty'):
-            self.tree_inv.heading(col, text=col)
-            self.tree_inv.column(col, width=80)
-        self.tree_inv.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-
-        tab.grid_rowconfigure(1, weight=1)
         self.refresh_inventory()
+        self.refresh_colleges()
 
     def add_item(self):
-        # Validation for Qty and Level
         try:
-            qty = int(self.ent_qty.get())
+            qty = int(self.ent_qty.get());
             lvl = int(self.ent_lvl.get())
+            if StockManager.add_item(self.ent_name.get(), self.ent_cat.get(), self.ent_unit.get(), qty, lvl):
+                self.refresh_inventory();
+                CTkMessagebox(title="Success", message="Item Added", icon="check")
+            else:
+                CTkMessagebox(title="Error", message="Failed. Name might be duplicate.", icon="cancel")
         except ValueError:
-            CTkMessagebox(title="Error", message="Quantity and Reorder Level must be numbers.", icon="cancel")
-            return
+            CTkMessagebox(title="Error", message="Qty/Lvl must be numbers", icon="cancel")
 
-        # Assumes StockManager.add_item handles Item Master CRUD
-        if StockManager.add_item(self.ent_name.get(), self.ent_cat.get(), self.ent_unit.get(), qty, lvl):
-            CTkMessagebox(title="Success", message="Item Added and Stock Initialized.", icon="check")
-            self.refresh_inventory()
+    def add_college(self):
+        if College.add_college(self.ent_col_name.get()):
+            self.refresh_colleges();
+            CTkMessagebox(title="Success", message="College Added", icon="check")
         else:
-            CTkMessagebox(title="Error", message="Failed to add item (Check for duplicate name).", icon="cancel")
+            CTkMessagebox(title="Error", message="Failed to add college.", icon="cancel")
 
     def refresh_inventory(self):
-        """Loads and updates the Item Master table."""
         for i in self.tree_inv.get_children(): self.tree_inv.delete(i)
-        # Assumes StockManager.get_all_items() returns item details including stock and reorder level
-        for row in StockManager.get_all_items():
-            self.tree_inv.insert('', 'end', values=row)
+        for r in StockManager.get_all_items(): self.tree_inv.insert('', 'end', values=r)
 
-    # --- Tab 2: Pending Requests & Returns ---
+    def refresh_colleges(self):
+        for i in self.tree_col.get_children(): self.tree_col.delete(i)
+        for r in College.get_all_colleges(): self.tree_col.insert('', 'end', values=r)
+
+    # --- TAB 2: PENDING REQUESTS ---
     def setup_requests_tab(self):
-        tab = self.notebook.tab("Pending Requests & Returns")
+        tab = self.notebook.tab("Pending Requests")
         tab.grid_columnconfigure(0, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # TABLE (View all pending item requests with details)
-        self.tree_req = tk.ttk.Treeview(tab, columns=('ID', 'College', 'Item', 'Qty', 'Purpose', 'Type'),
-                                        show='headings')
-        for col in ('ID', 'College', 'Item', 'Qty', 'Purpose', 'Type'):
-            self.tree_req.heading(col, text=col)
+        self.tree_req = ttk.Treeview(tab, columns=('ID', 'College', 'Item', 'Qty', 'Purpose', 'Type'), show='headings')
+        for c in ('ID', 'College', 'Item', 'Qty', 'Purpose', 'Type'): self.tree_req.heading(c, text=c)
         self.tree_req.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        # BUTTONS FRAME
-        btn_frame = ctk.CTkFrame(tab)
-        btn_frame.grid(row=1, column=0, pady=10)
+        bf = ctk.CTkFrame(tab)
+        bf.grid(row=1, column=0, pady=10)
+        ctk.CTkButton(bf, text="Approve", command=self.approve, fg_color="green").pack(side="left", padx=10)
+        ctk.CTkButton(bf, text="Reject", command=self.reject, fg_color="red").pack(side="left", padx=10)
+        ctk.CTkButton(bf, text="Refresh", command=self.refresh_reqs).pack(side="left", padx=10)
+        self.refresh_reqs()
 
-        # Approve/Reject Buttons
-        ctk.CTkButton(btn_frame, text="Approve", command=self.approve_req, fg_color="green").pack(side='left', padx=10)
-        ctk.CTkButton(btn_frame, text="Reject", command=self.reject_req, fg_color="red").pack(side='left', padx=10)
-        ctk.CTkButton(btn_frame, text="Refresh", command=self.refresh_requests).pack(side='left', padx=10)
-
-        self.refresh_requests()
-
-    def refresh_requests(self):
+    def refresh_reqs(self):
         for i in self.tree_req.get_children(): self.tree_req.delete(i)
-        # Assumes RequestManager.get_pending_requests() retrieves both pending requests and pending returns
-        for row in RequestManager.get_pending_requests():
-            self.tree_req.insert('', 'end', values=row)
+        for r in RequestManager.get_pending_requests(): self.tree_req.insert('', 'end', values=r)
 
-    def approve_req(self):
-        selected = self.tree_req.selection()
-        if not selected:
-            CTkMessagebox(title="Error", message="Please select a request to approve.", icon="warning")
-            return
-
-        item = self.tree_req.item(selected[0])
-        req_id = item['values'][0]
-        req_type = item['values'][5]
-
+    def approve(self):
+        sel = self.tree_req.selection()
+        if not sel: return
+        item = self.tree_req.item(sel[0])['values']
+        req_id, req_type = item[0], item[5]
         status = "Approved - Ready for Pickup" if req_type == 'Request' else "Approved - Ready for Pickup (Return)"
 
-        # --- FIX THIS LINE (Use self.user_id) ---
         if RequestManager.process_approval(req_id, status, self.user_id):
-            CTkMessagebox(title="Approved", message=f"Request/Return {req_id} approved. Status: {status}", icon="check")
+            CTkMessagebox(title="Success", message=f"{req_type} Approved", icon="check")
+            self.refresh_reqs()
+            self.refresh_inventory()  # Update stock view
         else:
-            CTkMessagebox(title="Error", message=f"Failed to approve {req_id}. Check stock levels.", icon="cancel")
+            CTkMessagebox(title="Error", message="Failed. Check stock.", icon="cancel")
 
-        self.refresh_requests()
-
-    def reject_req(self):
-        selected = self.tree_req.selection()
-        if not selected:
-            CTkMessagebox(title="Error", message="Please select a request to reject.", icon="warning")
-            return
-
-        req_id = self.tree_req.item(selected[0])['values'][0]
-
-        # Use tk.simpledialog as CustomTkinter message box doesn't offer input fields
-        reason = simpledialog.askstring("Reject Request/Return", "Enter rejection reason (Required):")
-
+    def reject(self):
+        sel = self.tree_req.selection()
+        if not sel: return
+        req_id = self.tree_req.item(sel[0])['values'][0]
+        reason = simpledialog.askstring("Reject", "Reason:")
         if reason:
-            # Update status and log rejection reason
             RequestManager.update_request_status(req_id, "Rejected", reason)
-            CTkMessagebox(title="Rejected", message=f"Request/Return {req_id} rejected. Reason logged.", icon="check")
-            self.refresh_requests()
-        elif reason is not None:  # User clicked OK without typing a reason
-            CTkMessagebox(title="Warning", message="Rejection requires a reason.", icon="warning")
+            self.refresh_reqs()
 
-    # --- Tab 3: Dashboard & Backup ---
+    # --- TAB 3: DASHBOARD ---
     def setup_dashboard_tab(self):
-        tab = self.notebook.tab("Stock Dashboard & Backup")
+        tab = self.notebook.tab("Dashboard")
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_columnconfigure(1, weight=1)
 
-        # Note: Stock Dashboard visualization (per-college custody, low-stock alerts)
-        # is complex and is delegated to the StockManager service, represented by a placeholder button here.
+        # 1. Low Stock Alerts
+        f_alert = ctk.CTkFrame(tab)
+        f_alert.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        ctk.CTkLabel(f_alert, text="⚠️ Low Stock Alerts", text_color="red", font=("Arial", 16, "bold")).pack(pady=5)
+        self.tree_alerts = ttk.Treeview(f_alert, columns=('Item', 'Qty', 'Lvl'), show='headings', height=5)
+        for c in ('Item', 'Qty', 'Lvl'): self.tree_alerts.heading(c, text=c)
+        self.tree_alerts.pack(fill="both", expand=True, padx=5)
 
-        ctk.CTkLabel(tab, text="Stock Dashboard (Details Handled by StockManager Service)", font=("Arial", 16)).pack(
-            pady=20)
+        # 2. Controls & Backup
+        f_ctrl = ctk.CTkFrame(tab)
+        f_ctrl.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        ctk.CTkLabel(f_ctrl, text="Controls", font=("Arial", 16, "bold")).pack(pady=5)
+        ctk.CTkButton(f_ctrl, text="Refresh Dashboard", command=self.refresh_dashboard).pack(pady=10)
+        ctk.CTkButton(f_ctrl, text="Export Backup (CSV)", command=self.do_backup, fg_color="#E07A5F").pack(pady=10)
 
-        # Backup Button (Requirement: Export the entire central DB to CSV)
-        ctk.CTkButton(tab, text="Export Full DB Backup (backup.csv)", command=self.do_backup, height=40, width=250,
-                      fg_color="#E07A5F").pack(pady=50)
+        # ... inside setup_dashboard_tab ...
+
+        # 3. College Custody Overview
+        f_cust = ctk.CTkFrame(tab)
+        f_cust.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+
+        ctk.CTkLabel(f_cust, text="College Custody Overview", font=("Arial", 16, "bold")).pack(pady=5)
+
+        # FIX: Changed columns to match the query: (College Name, Item Name, Quantity)
+        self.tree_cust = ttk.Treeview(f_cust, columns=('College', 'Item', 'Qty'), show='headings', height=8)
+
+        # Configure Headings
+        self.tree_cust.heading('College', text='College Name')
+        self.tree_cust.heading('Item', text='Item Name')
+        self.tree_cust.heading('Qty', text='Quantity')
+
+        # Configure Columns
+        self.tree_cust.column('College', width=150)
+        self.tree_cust.column('Item', width=200)
+        self.tree_cust.column('Qty', width=80, anchor='center')
+
+        self.tree_cust.pack(fill="both", expand=True, padx=5)
+
+        self.refresh_dashboard()
+
+    def refresh_dashboard(self):
+        # 1. Refresh Alerts
+        for i in self.tree_alerts.get_children(): self.tree_alerts.delete(i)
+        for r in StockManager.get_low_stock_alerts():
+            self.tree_alerts.insert('', 'end', values=r)
+
+        # 2. Refresh Custody Overview
+        for i in self.tree_cust.get_children(): self.tree_cust.delete(i)
+
+        # Fetch data from StockManager
+        custody_data = StockManager.get_all_college_custody()
+        for r in custody_data:
+            self.tree_cust.insert('', 'end', values=r)
 
     def do_backup(self):
-        """Calls the service function to export the entire central DB to CSV."""
-        # Assumes StockManager.backup_database() returns (success, msg)
         success, msg = StockManager.backup_database()
-        CTkMessagebox(title="Backup Status", message=msg, icon="check" if success else "cancel")
+        CTkMessagebox(title="Backup", message=msg, icon="check" if success else "cancel")

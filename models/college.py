@@ -3,35 +3,72 @@ from config.db_config import get_db_connection
 
 class College:
     """
-    Represents a College User entity.
-    Handles data retrieval for the College Window tabs:
-    - My Requests
-    - My Returns
-    - Current Custody (Stock held by the college)
+    Represents a College entity.
+    Handles:
+    1. Registry Management (for Inventory Manager)
+    2. User Data Retrieval (for College User)
     """
-
-    def __init__(self, user_id):
+    def __init__(self, user_id=None):
         self.college_id = user_id
 
+    # ---------------------------------------------------------
+    # PART 1: REGISTRY MANAGEMENT (For Manager Window)
+    # ---------------------------------------------------------
+    @staticmethod
+    def add_college(name):
+        """Adds a new college to the registry."""
+        conn = get_db_connection()
+        if not conn: return False
+        try:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO colleges (college_name) VALUES (%s)", (name,))
+            conn.commit()
+            return True
+        except psycopg2.Error as e:
+            print(f"Error adding college: {e}")
+            return False
+        finally:
+            conn.close()
+
+    @staticmethod
+    def get_all_colleges():
+        """Retrieves all colleges for the Manager's list."""
+        conn = get_db_connection()
+        if not conn: return []
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT college_id, college_name FROM colleges ORDER BY college_id")
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_college(college_id):
+        """Deletes a college from the registry."""
+        conn = get_db_connection()
+        if not conn: return False
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM colleges WHERE college_id = %s", (college_id,))
+            conn.commit()
+            return True
+        except psycopg2.Error:
+            return False
+        finally:
+            conn.close()
+
+    # ---------------------------------------------------------
+    # PART 2: COLLEGE USER FUNCTIONS (For College Window)
+    # ---------------------------------------------------------
     def get_my_requests(self):
-        """
-        Fetches history of requests (Type='Request').
-        (Requirement: My Requests: list all requests with Status)
-        """
         return self._get_transactions_by_type('Request')
 
     def get_my_returns(self):
-        """
-        Fetches history of returns (Type='Return').
-        (Requirement: My Returns: list return requests with Status)
-        """
         return self._get_transactions_by_type('Return')
 
     def get_current_custody(self):
         """
-        Fetches items currently held by this college.
-        Crucial for the 'Return Item' tab validation.
-        (Requirement: Initiate Return for items currently in the college's custody)
+        Fetches items currently held by this college from inventory_stock.
         """
         conn = None
         try:
@@ -39,16 +76,15 @@ class College:
             if conn is None: return []
             cursor = conn.cursor()
 
-            # Join college_stock with items to get the Item Name
+            # Joined with inventory_stock and used correct item_id
             sql = """
-                SELECT i.id, i.name, cs.quantity, i.unit
-                FROM college_stock cs
-                JOIN items i ON cs.item_id = i.item_id
-                WHERE cs.college_id = %s AND cs.quantity > 0
+                SELECT i.item_id, i.name, s.quantity, i.unit
+                FROM inventory_stock s
+                JOIN items i ON s.item_id = i.item_id
+                WHERE s.college_id = %s AND s.quantity > 0
             """
             cursor.execute(sql, (self.college_id,))
-            return cursor.fetchall() # Returns list of tuples: (item_id, name, quantity, unit)
-
+            return cursor.fetchall()
         except psycopg2.Error as e:
             print(f"Error fetching custody: {e}")
             return []
@@ -56,19 +92,14 @@ class College:
             if conn: conn.close()
 
     def _get_transactions_by_type(self, trans_type):
-        """
-        Helper method to avoid code repetition for Requests and Returns logic.
-        """
+        """Helper to fetch requests/returns with correct schema."""
         conn = None
         try:
             conn = get_db_connection()
             if conn is None: return []
             cursor = conn.cursor()
 
-            # FIX:
-            # 1. Changed 'r.id' to 'r.request_no'
-            # 2. Changed 'r.type' to 'r.request_type'
-            # 3. Changed 'i.id' to 'i.item_id' (just in case)
+            # Using correct columns: request_no, request_type, item_id
             sql = """
                 SELECT r.request_no, i.name, r.quantity, r.status, r.request_date, r.rejection_reason
                 FROM requests r
@@ -78,7 +109,6 @@ class College:
             """
             cursor.execute(sql, (self.college_id, trans_type))
             return cursor.fetchall()
-
         except psycopg2.Error as e:
             print(f"Error fetching {trans_type}s: {e}")
             return []
